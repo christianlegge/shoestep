@@ -143,24 +143,24 @@ class BluetoothScreenState extends State<BluetoothScreen> {
   List<BluetoothService> deviceServices;
   BluetoothService selectedService;
   BluetoothCharacteristic selectedCharacteristic;
+  BluetoothDescriptor selectedDescriptor;
+  List<int> readFromDescriptor;
 
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
     return Scaffold(
         appBar: AppBar(
           title: Text('Bluetooth connect'),
         ),
         drawer: MyDrawer(),
-        body: Padding(
-          padding: EdgeInsets.all(8.0),
-          child: Center(
-            child: ListView(
-              children: <Widget>[
-                RaisedButton(
-                  child: Text('Scan for devices'),
-                  onPressed: scanning ? null : () {
+        body: Builder(
+          builder: (context) => 
+            Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Center(
+                child: RefreshIndicator(
+                  onRefresh: () async {
                     setState(() {
                       scanning = true;
                       devices = new Map();
@@ -174,46 +174,74 @@ class BluetoothScreenState extends State<BluetoothScreen> {
                         });
                       }
                     });
-                  },
-                ),
-                RaisedButton(
-                  child: Text('Cancel'),
-                  onPressed: scanning ? () {
-                    setState(() {
-                      devices = new Map();
-                      scanSubscription?.cancel();
-                      scanSubscription = null;
-                      deviceConnection?.cancel();
-                      deviceConnection = null;
-                      deviceServices = null;
-                      selectedDevice = null;
-                      selectedService = null;
-                      selectedCharacteristic = null;
-                      scanning = false;
-                    });
-                  } : null),
-                Divider(),
-                Text('Devices'),
-                Column(
-                  children: _buildDeviceList(),
-                ),
-                Divider(),
-                Text('Services'),
-                Column(
-                  children: _buildServiceList(),
-                ),
-                Divider(),
-                Text('Characteristics'),
-                Column(
-                  children: _buildCharacteristicList(),
-                ),
-                Divider(),
-                Text('Descriptors'),
-                Column(
-                  children: _buildDescriptorList(),
-                ),
-              ]
-            )
+                    await new Future.delayed(new Duration(seconds: 10));
+                    scanSubscription?.cancel();
+                    scanSubscription = null;
+                    Scaffold.of(context).showSnackBar(SnackBar(content: Text('Scan complete'),));
+                  } ,
+                  child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: <Widget>[
+                    RaisedButton(
+                      child: Text('Reset'),
+                      onPressed: () {
+                        setState(() {
+                          devices = new Map();
+                          scanSubscription?.cancel();
+                          scanSubscription = null;
+                          deviceConnection?.cancel();
+                          deviceConnection = null;
+                          deviceServices = null;
+                          selectedDevice = null;
+                          selectedService = null;
+                          selectedCharacteristic = null;
+                          scanning = false;
+                        });
+                      }),
+                    Divider(),
+                    Text('Devices'),
+                    Column(
+                      children: _buildDeviceList(),
+                    ),
+                    Divider(),
+                    Text('Services'),
+                    Column(
+                      children: _buildServiceList(),
+                    ),
+                    Divider(),
+                    Text('Characteristics'),
+                    Column(
+                      children: _buildCharacteristicList(),
+                    ),
+                    Divider(),
+                    Text('Descriptors (long press to read from)'),
+                    Column(
+                      children: _buildDescriptorList(context),
+                    ),
+                    Divider(),
+                    Text('Write to Descriptor'),
+                    TextField(
+                      enabled: selectedDescriptor != null,
+                      onSubmitted: (text) async {
+                        try {
+                          await selectedDevice.writeDescriptor(selectedDescriptor, text.split(',').map((x) => int.parse(x)).toList());
+                          Scaffold.of(context).showSnackBar(SnackBar(content: Text('Wrote descriptor'),));
+                        }
+                        catch (e) {
+                          Scaffold.of(context).showSnackBar(SnackBar(content: Text(e.toString()),));
+                        }
+                      },
+                    ),
+                    Divider(),
+                    Text('Read from Descriptor'),
+                    Text(readFromDescriptor.toString()),
+                    SizedBox(
+                      height: 100.0,
+                    )
+                  ]
+                )
+                )
+              )
           )
         )
     );
@@ -236,6 +264,10 @@ class BluetoothScreenState extends State<BluetoothScreen> {
             deviceConnection?.cancel();
             deviceConnection = null;
             selectedDevice = v.device;
+            deviceServices = null;
+            selectedService = null;
+            selectedCharacteristic = null;
+            selectedDescriptor = null;
             deviceConnection = flutterBlue.connect(v.device).listen((s) {
 
               if (s == BluetoothDeviceState.connected) {
@@ -266,6 +298,8 @@ class BluetoothScreenState extends State<BluetoothScreen> {
         title: Text(bs.uuid.toString()),
         subtitle: Text(bs == selectedService ? 'Selected' : ''),
         onTap: () {
+          selectedCharacteristic = null;
+          selectedDescriptor = null;
           selectedService = bs;
           setState(() {
 
@@ -286,6 +320,7 @@ class BluetoothScreenState extends State<BluetoothScreen> {
         subtitle: Text(bc == selectedCharacteristic ? 'Selected' : ''),
         title: Text(bc.uuid.toString()),
         onTap: () {
+          selectedDescriptor = null;
           selectedCharacteristic = bc;
           setState(() {
 
@@ -296,7 +331,7 @@ class BluetoothScreenState extends State<BluetoothScreen> {
     return _list;
   }
 
-  List<ListTile> _buildDescriptorList() {
+  List<ListTile> _buildDescriptorList(context) {
     if (selectedCharacteristic == null) {
       return new List();
     }
@@ -304,6 +339,23 @@ class BluetoothScreenState extends State<BluetoothScreen> {
     for (BluetoothDescriptor bd in selectedCharacteristic.descriptors) {
       _list.add(ListTile(
         title: Text(bd.uuid.toString()),
+        subtitle: Text(selectedDescriptor == bd ? 'Selected' : ''),
+        onTap: () {
+          setState(() {
+            selectedDescriptor = bd;
+          });
+          
+          
+          //Scaffold.of(context).showSnackBar(SnackBar(content: Text('DESCRIPTOR'),));
+        },
+        onLongPress: () {
+          selectedDevice.readDescriptor(bd).then((list) {
+            setState(() {
+              readFromDescriptor = list;
+            });
+            Scaffold.of(context).showSnackBar(SnackBar(content: Text(('Read from descriptor'))));
+          });
+        },
       ));
     }
     return _list;
