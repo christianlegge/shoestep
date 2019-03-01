@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:core';
 import 'dart:developer';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter_blue/flutter_blue.dart';
@@ -201,6 +202,8 @@ class BluetoothScreenState extends State<BluetoothScreen> {
                           selectedDevice = null;
                           selectedService = null;
                           selectedCharacteristic = null;
+                          gSelectedCharacteristic = null;
+                          gSelectedDevice = null;
                           scanning = false;
                         });
                       }),
@@ -416,10 +419,13 @@ class ReadDataScreenState extends State<ReadDataScreen> {
   
   void readSteps(Timer t) {
     print("timer elapsed");
-    setState(() async {
-      List<int> l = await gSelectedDevice.readCharacteristic(gSelectedCharacteristic);
-      steps = l[0];
-    });
+    if (gSelectedCharacteristic != null && gSelectedDevice != null) {
+      setState(() {
+        gSelectedDevice.readCharacteristic(gSelectedCharacteristic).then((l) {
+          steps = Uint8List.fromList(l).buffer.asByteData().getUint32(0);
+        });
+      });
+    }
   }
 
   @override
@@ -456,7 +462,12 @@ class ReadDataScreenState extends State<ReadDataScreen> {
                 });
               },
             ),
-            Text(steps.toString()),
+            Text(
+              steps.toString(),
+              style: TextStyle(
+                fontSize: 72,
+              )
+            ),
           ],
         )
       ),
