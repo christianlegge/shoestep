@@ -14,6 +14,7 @@ BluetoothCharacteristic gSelectedCharacteristic;
 Database database;
 String listph = '1';
 int dbcount = 0;
+int stepcount = 0;
 
 Future<void> initDb() async {
   var databasesPath = await getDatabasesPath();
@@ -414,11 +415,14 @@ class ReadDataScreen extends StatefulWidget {
 
 class ReadDataScreenState extends State<ReadDataScreen> {
   Timer readTimer;
-  Duration timerDuration;
-  int steps;
+  int steps = 0;
   
   void readSteps(Timer t) {
     print("timer elapsed");
+    setState(() {
+      steps = stepcount;
+    });
+    return;
     if (gSelectedCharacteristic != null && gSelectedDevice != null) {
       setState(() {
         gSelectedDevice.readCharacteristic(gSelectedCharacteristic).then((l) {
@@ -438,22 +442,13 @@ class ReadDataScreenState extends State<ReadDataScreen> {
       body: Center(
         child: Column(
           children: <Widget>[
-            TextField(
-              decoration: InputDecoration(
-                icon: Icon(Icons.timer),
-              ),
-              onSubmitted: (text) {
-                timerDuration = Duration(milliseconds: int.parse(text));
-              },
-              enabled: readTimer == null,
-            ),
             RaisedButton(
               child: Text(readTimer != null ? "Stop timer" : "Start timer"),
               onPressed: () {
                 setState( () {
-                  if (readTimer == null && timerDuration != null) {
-                    readTimer = new Timer.periodic(timerDuration, readSteps);
-                    print(timerDuration.inMilliseconds.toString());
+                  if (readTimer == null) {
+                    readTimer = new Timer.periodic(Duration(milliseconds: 5000), readSteps);
+                    print('timer started');
                   }
                   else if (readTimer != null) {
                     readTimer.cancel();
@@ -468,6 +463,12 @@ class ReadDataScreenState extends State<ReadDataScreen> {
                 fontSize: 72,
               )
             ),
+            RaisedButton(
+              child: Text('Step'),
+              onPressed: () {
+                stepcount++;
+              },
+            )
           ],
         )
       ),
