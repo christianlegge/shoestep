@@ -416,19 +416,36 @@ class ReadDataScreen extends StatefulWidget {
 class ReadDataScreenState extends State<ReadDataScreen> {
   Timer readTimer;
   int steps = 0;
+  bool readFromBluetooth = false;
+  bool tryReading = false;
+  int stepsDiff = 0;
+  bool lastReadFinished = true;
+  
   
   void readSteps(Timer t) {
     print("timer elapsed");
-    setState(() {
-      steps = stepcount;
-    });
-    return;
-    if (gSelectedCharacteristic != null && gSelectedDevice != null) {
+    if (!readFromBluetooth) {
       setState(() {
-        gSelectedDevice.readCharacteristic(gSelectedCharacteristic).then((l) {
-          steps = Uint8List.fromList(l).buffer.asByteData().getUint32(0);
-        });
+        steps = stepcount;
       });
+    }
+    else {
+      try {
+        if (lastReadFinished) {
+          setState(() {
+            lastReadFinished = false;
+            gSelectedDevice.readCharacteristic(gSelectedCharacteristic).then((l) {
+              steps = Uint8List.fromList(l).buffer.asByteData().getUint32(0) + stepsDiff;
+              lastReadFinished = true;
+            });
+          });
+        }
+      }
+      catch(e) {
+        setState(() {
+          steps = -333;
+        });
+      }
     }
   }
 
@@ -442,12 +459,28 @@ class ReadDataScreenState extends State<ReadDataScreen> {
       body: Center(
         child: Column(
           children: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Text('Counter'),
+                Switch(
+                  value: readFromBluetooth,
+                  materialTapTargetSize: MaterialTapTargetSize.padded,
+                  onChanged: (val) {
+                    setState(() {
+                      readFromBluetooth = val;
+                    });
+                  },
+                ),
+                Text('Bluetooth device'),
+              ]
+            ),
             RaisedButton(
               child: Text(readTimer != null ? "Stop timer" : "Start timer"),
               onPressed: () {
                 setState( () {
                   if (readTimer == null) {
-                    readTimer = new Timer.periodic(Duration(milliseconds: 5000), readSteps);
+                    readTimer = new Timer.periodic(Duration(milliseconds: 50), readSteps);
                     print('timer started');
                   }
                   else if (readTimer != null) {
@@ -467,6 +500,15 @@ class ReadDataScreenState extends State<ReadDataScreen> {
               child: Text('Step'),
               onPressed: () {
                 stepcount++;
+              },
+            ),
+            RaisedButton(
+              child: Text('Reset count'),
+              onPressed: () {
+                setState(() {
+                  stepsDiff = stepsDiff - steps;
+                  steps = 0;
+                });
               },
             )
           ],
