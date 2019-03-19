@@ -2,10 +2,14 @@ import 'dart:async';
 import 'dart:core';
 import 'dart:developer';
 import 'dart:typed_data';
+import 'package:charts_flutter/flutter.dart' as charts;
+import 'package:flutter/animation.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:flutter_shoestep/example.dart';
+import 'package:flutter_shoestep/home.dart';
+import 'package:flutter_shoestep/workout.dart';
 
 FlutterBlue flutterBlue = FlutterBlue.instance;
 BluetoothDevice gSelectedDevice;
@@ -15,6 +19,7 @@ Database database;
 String listph = '1';
 int dbcount = 0;
 int stepcount = 0;
+
 
 Future<void> initDb() async {
   var databasesPath = await getDatabasesPath();
@@ -28,6 +33,8 @@ Future<void> initDb() async {
   dbcount = Sqflite.firstIntValue(await database.rawQuery('SELECT COUNT(*) FROM Test'));
 }
 
+var bluetoothScreen = BluetoothScreen();
+
 void main() {
   initDb();
   runApp(MyApp());
@@ -40,12 +47,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ShoeStep',
-      initialRoute: '/',
+      initialRoute: '/animationtest',
       routes: {
-        '/': (context) => BluetoothScreen(),
+        '/': (context) => HomeScreen(),
         '/saved': (context) => SavedScreen(),
-        '/connect': (context) => BluetoothScreen(),
+        '/animationtest': (context) => AnimationTestScreen(),
+        '/connect': (context) => bluetoothScreen,
         '/read': (context) => ReadDataScreen(),
+        '/workout': (context) => WorkoutScreen(),
       },
       theme: new ThemeData(
         primaryColor: Colors.red,
@@ -55,7 +64,106 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class ScaleClipper extends CustomClipper<Rect> {
+  Offset origin;
+  double value;
+
+  @override
+  Rect getClip(Size size) {
+    Rect rect = Rect.fromCircle(center: origin, radius: value);
+    return rect;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Rect> oldClipper) {
+    return true;
+  }
+
+  ScaleClipper(Offset origin, double value) {
+    this.origin = origin;
+    this.value = value;
+  }
+}
+
+class ClipTransition extends AnimatedBuilder {
+
+
+}
+
+class AnimationTestScreen extends StatefulWidget {
+  @override
+  State<AnimationTestScreen> createState() => AnimationTestScreenState();
+}
+
+class AnimationTestScreenState extends State<AnimationTestScreen> with SingleTickerProviderStateMixin {
+  Animation<double> animation;
+  AnimationController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = AnimationController(duration: const Duration(seconds: 2), vsync: this);
+    animation = Tween<double>(begin:0, end:300).animate(controller)
+    ..addListener(() {
+      setState(() {
+
+      });
+    })
+    ..addStatusListener((status) {
+      print(status.toString());
+      if (status == AnimationStatus.completed) {
+        controller.reverse();
+      }
+    });
+  }
+
+  double sliderVal = 300;
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('animation test'),
+      ),
+      body: Center(
+        child: Column(
+          children: <Widget>[
+            RaisedButton(
+              child: Text('animate'),
+              onPressed: () {
+                controller.forward();
+              },
+            ),
+            ClipOval(
+              clipper: ScaleClipper(Offset(150, 150), animation.value),
+              child: Container(
+                color: Colors.red,
+                width: 300.0,
+                height: 300.0,
+              ),
+            )
+          ],
+        )
+      )
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() => HomeScreenState();
+}
+
+class HomeScreenState extends State<HomeScreen> {
+
+  bool isConnected = true;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,22 +171,63 @@ class HomeScreen extends StatelessWidget {
         title: Text('ShoeStep'),
       ),
       drawer: MyDrawer(),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'walkTag',
+        backgroundColor: Colors.red,
+        child: Icon(Icons.directions_walk),
+        onPressed: () {
+          Navigator.push(context, PageRouteBuilder(
+            pageBuilder: (BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
+              return WorkoutScreen();
+            },
+            transitionsBuilder: (BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+              return AnimatedBuilder(
+                child: child,
+                animation: animation,
+                builder: (BuildContext context, Widget child) {
+                  return ClipOval(
+                    clipper: ScaleClipper(Offset(350, 690), animation.value*1000),
+                    child: child,
+                  );
+                },
+              );
+            }
+          ));
+        },
+      ),
       body: Center(
+
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget> [
-            Text(dbcount.toString()),
-            TextField(
-              decoration: InputDecoration(
-                icon: Icon(Icons.accessible_forward),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(width: 2.0, color: Colors.red),
               ),
-              onSubmitted: (text) {
-                database.insert('Test', {'id':dbcount, 'name':text});
-                dbcount++;
+              child: ButtonBar(
 
-              },
+                children: <Widget>[
+                  FlatButton(
+                    child: Text('one'),
+                    color: Colors.red,
+                    onPressed: () {
+                      print('a');
+                    },
+                  ),
+                  FlatButton(
+                    child: Text('two'),
+                  ),
+                  FlatButton(
+                    child: Text('three'),
+                  ),
+                ],
+              ),
             ),
-            Icon(Icons.ac_unit),
+
+            Container(
+              height: 200,
+              child: SimpleTimeSeriesChart.withSampleData(),
+            ),
           ],
         ),
       ),
