@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:core';
 import 'dart:developer';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:charts_flutter/flutter.dart' as charts;
 import 'package:flutter/animation.dart';
@@ -16,28 +17,24 @@ BluetoothDevice gSelectedDevice;
 BluetoothCharacteristic gSelectedCharacteristic;
 
 Database database;
-String listph = '1';
-int dbcount = 0;
 int stepcount = 0;
-
+Random rng = new Random();
 
 Future<void> initDb() async {
   var databasesPath = await getDatabasesPath();
-  String path = [databasesPath, '/demo.db'].join('');
-  await deleteDatabase(path);
+  String path = [databasesPath, 'demo.db'].join('');
+  //await deleteDatabase(path);
   database = await openDatabase(path, version: 1,
   onCreate: (Database db, int version) async {
-    await db.execute('CREATE TABLE Test (id INTEGER PRIMARY KEY, name TEXT)');
-    listph = '2';
+    await db.execute('CREATE TABLE StepCounts (id INTEGER PRIMARY KEY, steps INTEGER)');
   });
-  dbcount = Sqflite.firstIntValue(await database.rawQuery('SELECT COUNT(*) FROM Test'));
 }
 
-var bluetoothScreen = BluetoothScreen();
-
 void main() {
-  initDb();
-  runApp(MyApp());
+  initDb().then((_) {
+    runApp(MyApp());
+  });
+
   //runApp(new FlutterBlueApp());
 }
 
@@ -47,12 +44,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ShoeStep',
-      initialRoute: '/animationtest',
+      initialRoute: '/',
       routes: {
         '/': (context) => HomeScreen(),
         '/saved': (context) => SavedScreen(),
         '/animationtest': (context) => AnimationTestScreen(),
-        '/connect': (context) => bluetoothScreen,
+        '/connect': (context) => BluetoothScreen(),
         '/read': (context) => ReadDataScreen(),
         '/workout': (context) => WorkoutScreen(),
       },
@@ -83,11 +80,6 @@ class ScaleClipper extends CustomClipper<Rect> {
     this.origin = origin;
     this.value = value;
   }
-}
-
-class ClipTransition extends AnimatedBuilder {
-
-
 }
 
 class AnimationTestScreen extends StatefulWidget {
@@ -155,85 +147,6 @@ class AnimationTestScreenState extends State<AnimationTestScreen> with SingleTic
   }
 }
 
-class HomeScreen extends StatefulWidget {
-  @override
-  State<StatefulWidget> createState() => HomeScreenState();
-}
-
-class HomeScreenState extends State<HomeScreen> {
-
-  bool isConnected = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('ShoeStep'),
-      ),
-      drawer: MyDrawer(),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'walkTag',
-        backgroundColor: Colors.red,
-        child: Icon(Icons.directions_walk),
-        onPressed: () {
-          Navigator.push(context, PageRouteBuilder(
-            pageBuilder: (BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
-              return WorkoutScreen();
-            },
-            transitionsBuilder: (BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
-              return AnimatedBuilder(
-                child: child,
-                animation: animation,
-                builder: (BuildContext context, Widget child) {
-                  return ClipOval(
-                    clipper: ScaleClipper(Offset(350, 690), animation.value*1000),
-                    child: child,
-                  );
-                },
-              );
-            }
-          ));
-        },
-      ),
-      body: Center(
-
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget> [
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(width: 2.0, color: Colors.red),
-              ),
-              child: ButtonBar(
-
-                children: <Widget>[
-                  FlatButton(
-                    child: Text('one'),
-                    color: Colors.red,
-                    onPressed: () {
-                      print('a');
-                    },
-                  ),
-                  FlatButton(
-                    child: Text('two'),
-                  ),
-                  FlatButton(
-                    child: Text('three'),
-                  ),
-                ],
-              ),
-            ),
-
-            Container(
-              height: 200,
-              child: SimpleTimeSeriesChart.withSampleData(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class SavedScreen extends StatelessWidget {
   @override
@@ -263,11 +176,11 @@ class SavedScreen extends StatelessWidget {
   }
 
   Future<List<Widget>> listEntriesFromDb() async {
-    List rows = (await database.query('Test')).toList();
+    List rows = (await database.query('StepCounts')).toList();
     List<ListTile> list = new List();
     for (int i = 0; i < rows.length; i++) {
       list.add(new ListTile(
-        title: Text(rows[i]['id'].toString() + ' ' + rows[i]['name'])
+        title: Text(rows[i]['id'].toString() + ' ' + rows[i]['steps'].toString())
       ));
     }
     if (list.length > 0) {
