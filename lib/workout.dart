@@ -114,7 +114,12 @@ class WorkoutScreenState extends State<WorkoutScreen> {
                   });
                 },
               ),
-              Text(currentSteps.toString()),
+              Text(
+                currentSteps.toString(),
+                style: TextStyle(
+                  fontSize: 72,
+                )
+              ),
               Container(
                 height: 100,
               ),

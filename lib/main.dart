@@ -13,6 +13,7 @@ import 'package:flutter_shoestep/home.dart';
 import 'package:flutter_shoestep/workout.dart';
 
 FlutterBlue flutterBlue = FlutterBlue.instance;
+StreamSubscription deviceConnection;
 BluetoothDevice gSelectedDevice;
 BluetoothCharacteristic gSelectedCharacteristic;
 
@@ -207,7 +208,6 @@ class BluetoothScreenState extends State<BluetoothScreen> {
   bool scanning = false;
   Map<String, ScanResult> devices = new Map();
   var scanSubscription;
-  StreamSubscription deviceConnection;
   BluetoothDevice selectedDevice;
   List<BluetoothService> deviceServices;
   BluetoothService selectedService;

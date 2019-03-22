@@ -55,6 +55,18 @@ class HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget> [
+            Text('selected device: ' + (gSelectedDevice != null ? gSelectedDevice.name : 'null')),
+            Text('selected characteristic: ' + (gSelectedCharacteristic != null ? gSelectedCharacteristic.uuid.toString() : 'null')),
+            RaisedButton(
+              child: Text('drop connection'),
+              onPressed: () {
+                setState(() {
+                  deviceConnection?.cancel();
+                  gSelectedDevice = null;
+                  gSelectedCharacteristic = null;
+                });
+              },
+            ),
             Container(
               decoration: BoxDecoration(
                 border: Border.all(width: 2.0, color: Colors.red),
