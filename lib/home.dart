@@ -93,34 +93,55 @@ class HomeScreenState extends State<HomeScreen> {
 
             Padding(
               padding: EdgeInsets.all(10.0),
-              child: SizedBox(
-                height: 300.0,
-                child: FutureBuilder(
-                  future: database.query('StepCounts'),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData) {
-                      return charts.LineChart(
-                        <charts.Series<dynamic, int>>[
-                          new charts.Series<dynamic, int>(
+              child: FutureBuilder(
+                future: database.query('StepCounts'),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return SizedBox(
+                      height: 300.0,
+                      width: 400.0,
+                      child: charts.TimeSeriesChart(
+                        <charts.Series<dynamic, DateTime>>[
+                          new charts.Series<dynamic, DateTime>(
                             id: 'Sales',
                             colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
                             dashPatternFn: (_, __) => [2, 2],
-                            domainFn: (row, _) => row['id'],
+                            domainFn: (row, _) {
+                              DateTime d = DateTime.parse(row['date']);
+                              return new DateTime(d.year, d.month, d.day);
+                            },
                             measureFn: (row, _) => row['steps'],
                             data: snapshot.data,
                           )
                         ],
                         animate: true,
                         defaultRenderer: new charts.LineRendererConfig(includePoints: true),
-                      );
-                    }
-                    else {
-                      return Text('No Data');
-                    }
+                        domainAxis: new charts.DateTimeAxisSpec(
+                          renderSpec: new charts.SmallTickRendererSpec(
+                            labelStyle: new charts.TextStyleSpec(
+                              fontSize: 12,
+                            )
+                          ),
+                          tickFormatterSpec: new charts.AutoDateTimeTickFormatterSpec(
+                            minute: new charts.TimeFormatterSpec(
+                              format: 'MM/dd/yyyy',
+                              transitionFormat: 'MMM',
+                            ),
+                            day: new charts.TimeFormatterSpec(
+                              format: 'MMM dd',
+                              transitionFormat: 'MMM dd',
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
                   }
-                )
-              ),
-            )
+                  else {
+                    return Text('No Data');
+                  }
+                }
+              )
+            ),
           ],
         ),
       ),

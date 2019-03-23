@@ -12,16 +12,18 @@ class WorkoutScreen extends StatefulWidget {
   State<StatefulWidget> createState() => WorkoutScreenState();
 }
 
-class WorkoutScreenState extends State<WorkoutScreen> {
+class WorkoutScreenState extends State<WorkoutScreen> with SingleTickerProviderStateMixin {
   int currentSteps = 0;
   int stepsFromBt = 0;
   Timer readTimer;
-  bool readFromBluetooth = false;
+  bool readFromBluetooth = true;
   bool tryReading = false;
   int stepsDiffButton = 0;
   int stepsDiffBt = 0;
   bool lastReadFinished = true;
   int stepsFromButton = 0;
+  Animation<double> bgScroll;
+  AnimationController bgScrollController;
 
 
   void readSteps(Timer t) {
@@ -57,8 +59,22 @@ class WorkoutScreenState extends State<WorkoutScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
+    bgScrollController = AnimationController(
+      duration: Duration(seconds: 10), vsync: this,
+    );
+    bgScroll = Tween<double>(begin:-1.0, end:1.0).animate(bgScrollController)
+    ..addListener(() {
+      setState(() {
+
+      });
+    })
+    ..addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        bgScrollController.forward(from: 0.35);
+      }
+    });
+    bgScrollController.forward();
     readTimer = new Timer.periodic(Duration(milliseconds: 50), readSteps);
   }
 
@@ -68,7 +84,7 @@ class WorkoutScreenState extends State<WorkoutScreen> {
       onWillPop: () async {
         print(currentSteps);
         int numRows = Sqflite.firstIntValue(await database.rawQuery('SELECT COUNT(*) FROM StepCounts'));
-        database.insert('StepCounts', {'id':numRows,'steps':currentSteps});
+        database.insert('StepCounts', {'id':numRows,'date':new DateTime(2019, 03, numRows).toIso8601String(),'steps':currentSteps});
         readTimer = null;
         return true;
       },
@@ -78,82 +94,102 @@ class WorkoutScreenState extends State<WorkoutScreen> {
         appBar: AppBar(
           title: Text('Workout'),
         ),
-        body: Center(
-          child: ListView(
-            children: <Widget>[
-              Column(
-                children: <Widget>[
-                  Row(
-                      children: <Widget>[
-                        Hero(
-                          child: Icon(Icons.directions_walk, size: 100,),
-                          tag: 'walkTag',
-                        ),
-                        Text('Workout'),
-                      ]
-                  ),
-
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        Text('Counter'),
-                        Switch(
-                          value: readFromBluetooth,
-                          materialTapTargetSize: MaterialTapTargetSize.padded,
-                          onChanged: (val) {
-                            setState(() {
-                              readFromBluetooth = val;
-                            });
-                          },
-                        ),
-                        Text('Bluetooth device'),
-                      ]
-                  ),
-                  RaisedButton(
-                    child: Text('Step'),
-                    onPressed: () {
-                      setState(() {
-                        stepsFromButton++;
-                      });
-                    },
-                  ),
-                  RaisedButton(
-                    child: Text('Reset count'),
-                    onPressed: () {
-                      setState(() {
-                        if (readFromBluetooth) {
-                          stepsDiffBt -= currentSteps;
-                        }
-                        else {
-                          stepsDiffButton -= currentSteps;
-                        }
-                        currentSteps = 0;
-                      });
-                    },
-                  ),
-                  Text(
-                      currentSteps.toString(),
-                      style: TextStyle(
-                        fontSize: 72,
-                      )
-                  ),
-                  Text('Real steps: ' + (readFromBluetooth ? stepsFromBt : stepsFromButton).toString()),
-                  Container(
-                    height: 100,
-                  ),
-                ],
+        body: Stack(
+          children: <Widget>[
+            Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/city.png'),
+                  colorFilter: ColorFilter.mode(Color.fromARGB(185, 255, 255, 255), BlendMode.colorDodge),
+                  fit: BoxFit.cover,
+                  alignment: Alignment(bgScroll.value, 0),
+                  repeat: ImageRepeat.repeatX,
+                ),
               ),
-            ],
-          )
+            ),
+            Center(
+              child: ListView(
+                children: <Widget>[
+                  Column(
+                    children: <Widget>[
+                      Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Text('Counter'),
+                            Switch(
+                              value: readFromBluetooth,
+                              materialTapTargetSize: MaterialTapTargetSize.padded,
+                              onChanged: (val) {
+                                setState(() {
+                                  readFromBluetooth = val;
+                                });
+                              },
+                            ),
+                            Text('Bluetooth device'),
+                          ]
+                      ),
+                      RaisedButton(
+                        child: Text('Step'),
+                        onPressed: () {
+                          setState(() {
+                            stepsFromButton++;
+                          });
+                        },
+                      ),
+                      RaisedButton(
+                        child: Text('Reset count'),
+                        onPressed: () {
+                          setState(() {
+                            if (readFromBluetooth) {
+                              stepsDiffBt -= currentSteps;
+                            }
+                            else {
+                              stepsDiffButton -= currentSteps;
+                            }
+                            currentSteps = 0;
+                          });
+                        },
+                      ),
+                      Text(
+                          currentSteps.toString(),
+                          style: TextStyle(
+                            fontSize: 72,
+                          )
+                      ),
+                      Text('Real steps: ' + (readFromBluetooth ? stepsFromBt : stepsFromButton).toString()),
+                      Container(
+                        height: 100,
+                      ),
 
+                    ],
+                  ),
+
+                ],
+              )
+            ),
+            Positioned(
+                child: Hero(
+                  child: Icon(Icons.directions_walk, size: 100,),
+                  tag: 'walkTag',
+                ),
+                bottom: 80.0
+            )
+          ]
         ),
         floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.cancel),
+          child: Icon(Icons.check),
           onPressed: () {
             Navigator.maybePop(context);
           },
         ),
       )
     );
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    bgScrollController.dispose();
+    super.dispose();
   }
 }

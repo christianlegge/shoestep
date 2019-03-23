@@ -24,10 +24,13 @@ Random rng = new Random();
 Future<void> initDb() async {
   var databasesPath = await getDatabasesPath();
   String path = [databasesPath, 'demo.db'].join('');
-  //await deleteDatabase(path);
+  await deleteDatabase(path);
   database = await openDatabase(path, version: 1,
   onCreate: (Database db, int version) async {
-    await db.execute('CREATE TABLE StepCounts (id INTEGER PRIMARY KEY, steps INTEGER)');
+    await db.execute('CREATE TABLE StepCounts (id INTEGER PRIMARY KEY, date TEXT, steps INTEGER)');
+    for (int i = 0; i < 30; i++) {
+      await db.insert('StepCounts', {'id': i, 'date': new DateTime(2019, 3, i).toIso8601String(), 'steps': rng.nextInt(5000)+5000});
+    }
   });
 }
 
