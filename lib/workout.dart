@@ -60,7 +60,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
         if (lastReadFinished) {
           setState(() {
             lastReadFinished = false;
-            gSelectedDevice.readCharacteristic(gSelectedCharacteristic).then((l) {
+            selectedDevice.readCharacteristic(selectedCharacteristic).then((l) {
 
               stepsFromBt = Uint8List.fromList(l).buffer.asByteData().getUint32(0);
               if (isFirstRead) {
@@ -416,6 +416,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
                     }
                   }
                   setState(() {
+                    bgScrollController.forward();
                     connectedAndReading = true;
                     tryingToConnect = false;
                   });
