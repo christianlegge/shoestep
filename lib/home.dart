@@ -16,135 +16,138 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
 
   bool isConnected = true;
+  int selectedDomain = 365;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) =>
+        precacheImage(AssetImage('assets/city.png'), context));
+  }
+
+  void _setState() {
+    setState(() {
+
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('ShoeStep'),
-      ),
-      drawer: MyDrawer(),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'walkTag',
-        backgroundColor: Colors.red,
-        child: Icon(Icons.directions_walk),
-        onPressed: () {
-          Navigator.push(context, PageRouteBuilder(
-            transitionDuration: Duration(milliseconds: 500),
-              pageBuilder: (BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
-                return WorkoutScreen();
-              },
-              transitionsBuilder: (BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
-                return AnimatedBuilder(
-                  child: child,
-                  animation: animation,
-                  builder: (BuildContext context, Widget child) {
-                    return ClipOval(
-                      clipper: ScaleClipper(Offset(350, 690), animation.value*1000),
-                      child: child,
-                    );
-                  },
-                );
-              }
-          ));
-        },
-      ),
-      body: Center(
-
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget> [
-            Text('selected device: ' + (gSelectedDevice != null ? gSelectedDevice.name : 'null')),
-            Text('selected characteristic: ' + (gSelectedCharacteristic != null ? gSelectedCharacteristic.uuid.toString() : 'null')),
-            RaisedButton(
-              child: Text('drop connection'),
-              onPressed: () {
-                setState(() {
-                  deviceConnection?.cancel();
-                  gSelectedDevice = null;
-                  gSelectedCharacteristic = null;
-                });
-              },
-            ),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(width: 2.0, color: Colors.red),
-              ),
-              child: ButtonBar(
-
-                children: <Widget>[
-                  FlatButton(
-                    child: Text('one'),
-                    color: Colors.red,
-                    onPressed: () {
-                      print('a');
-                    },
-                  ),
-                  FlatButton(
-                    child: Text('two'),
-                  ),
-                  FlatButton(
-                    child: Text('three'),
-                  ),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: EdgeInsets.all(10.0),
-              child: FutureBuilder(
-                future: database.query('StepCounts'),
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    return SizedBox(
-                      height: 300.0,
-                      width: 400.0,
-                      child: charts.TimeSeriesChart(
-                        <charts.Series<dynamic, DateTime>>[
-                          new charts.Series<dynamic, DateTime>(
-                            id: 'Sales',
-                            colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
-                            dashPatternFn: (_, __) => [2, 2],
-                            domainFn: (row, _) {
-                              DateTime d = DateTime.parse(row['date']);
-                              return new DateTime(d.year, d.month, d.day);
-                            },
-                            measureFn: (row, _) => row['steps'],
-                            data: snapshot.data,
-                          )
-                        ],
-                        animate: true,
-                        defaultRenderer: new charts.LineRendererConfig(includePoints: true),
-                        domainAxis: new charts.DateTimeAxisSpec(
-                          renderSpec: new charts.SmallTickRendererSpec(
-                            labelStyle: new charts.TextStyleSpec(
-                              fontSize: 12,
-                            )
-                          ),
-                          tickFormatterSpec: new charts.AutoDateTimeTickFormatterSpec(
-                            minute: new charts.TimeFormatterSpec(
-                              format: 'MM/dd/yyyy',
-                              transitionFormat: 'MMM',
-                            ),
-                            day: new charts.TimeFormatterSpec(
-                              format: 'MMM dd',
-                              transitionFormat: 'MMM dd',
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                  else {
-                    return Text('No Data');
-                  }
-                }
-              )
-            ),
-          ],
+        appBar: AppBar(
+          title: Text('ShoeStep'),
         ),
-      ),
+        drawer: MyDrawer(_setState),
+        floatingActionButton: FloatingActionButton(
+          heroTag: 'walkTag',
+          backgroundColor: Colors.red,
+          child: Icon(Icons.directions_walk),
+          onPressed: () {
+            Navigator.push(context, PageRouteBuilder(
+                transitionDuration: Duration(milliseconds: 500),
+                pageBuilder: (BuildContext context, Animation<double> animation,
+                    Animation<double> secondaryAnimation) {
+                  return WorkoutScreen();
+                },
+                transitionsBuilder: (BuildContext context,
+                    Animation<double> animation,
+                    Animation<double> secondaryAnimation, Widget child) {
+                  return AnimatedBuilder(
+                    child: child,
+                    animation: animation,
+                    builder: (BuildContext context, Widget child) {
+                      return ClipOval(
+                        clipper: ScaleClipper(
+                            Offset(350, 690), animation.value * 1000),
+                        child: child,
+                      );
+                    },
+                  );
+                }
+            ));
+          },
+        ),
+        body: Stack(
+            children: <Widget>[
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment(0.0, 0.0),
+                    colors: [Color.fromARGB(60, 0, 0, 0), Colors.transparent],
+                  ),
+                ),
+              ),
+              Center(
+                child: Column(
+                  children: <Widget>[
+                    SizedBox(
+                      height: 100.0,
+                    ),
+                    _ChartDomainSelector(),
+                    Padding(
+                        padding: EdgeInsets.all(10.0),
+                        child: FutureBuilder(
+                            future: database.rawQuery('select * from (select * from StepCounts order by id desc limit '+selectedDomain.toString()+') order by id asc'),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                return SizedBox(
+                                  height: 400.0,
+                                  width: 400.0,
+                                  child: charts.TimeSeriesChart(
+                                    <charts.Series<dynamic, DateTime>>[
+                                      new charts.Series<dynamic, DateTime>(
+                                        id: 'Sales',
+                                        colorFn: (_, __) =>
+                                        charts.MaterialPalette.red.shadeDefault,
+                                        dashPatternFn: (_, __) => [2, 2],
+                                        domainFn: (row, _) {
+                                          DateTime d = DateTime.parse(
+                                              row['date']);
+                                          return new DateTime(
+                                              d.year, d.month, d.day);
+                                        },
+                                        measureFn: (row, _) => row['steps'],
+                                        data: snapshot.data,
+                                      )
+                                    ],
+                                    animate: true,
+                                    defaultRenderer: new charts
+                                        .LineRendererConfig(
+                                        includePoints: true),
+                                    domainAxis: new charts.DateTimeAxisSpec(
+                                      renderSpec: new charts
+                                          .SmallTickRendererSpec(
+                                          labelStyle: new charts.TextStyleSpec(
+                                            fontSize: 12,
+                                          )
+                                      ),
+                                      tickFormatterSpec: new charts
+                                          .AutoDateTimeTickFormatterSpec(
+                                        minute: new charts.TimeFormatterSpec(
+                                          format: 'MMM dd',
+                                          transitionFormat: 'MMM dd',
+                                        ),
+                                        day: new charts.TimeFormatterSpec(
+                                          format: 'MMM dd',
+                                          transitionFormat: 'MMM dd',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              else {
+                                return Text('No Data');
+                              }
+                            }
+                        )
+                    ),
+                  ],
+                ),
+              ),
+            ]
+        )
     );
   }
 
@@ -168,62 +171,75 @@ class HomeScreenState extends State<HomeScreen> {
       return defaultList;
     }
   }
-}
 
-class SimpleTimeSeriesChart extends StatelessWidget {
-  final List<charts.Series> seriesList;
-  final bool animate;
-
-  SimpleTimeSeriesChart(this.seriesList, {this.animate});
-
-  /// Creates a [TimeSeriesChart] with sample data and no transition.
-  factory SimpleTimeSeriesChart.withSampleData() {
-    return new SimpleTimeSeriesChart(
-      _createSampleData(),
-      // Disable animations for image tests.
-      animate: true,
+  Widget _ChartDomainSelector() {
+    return Center(
+        child: Container(
+          decoration: BoxDecoration(
+              border: Border.all(width: 2.0, color: Colors.red),
+              borderRadius: BorderRadius.all(Radius.circular(8.0))
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    selectedDomain = 7;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                    border: Border(right: BorderSide(style: BorderStyle.solid,
+                        width: 2.0,
+                        color: Colors.red)),
+                    color: selectedDomain == 7 ? Colors.red : Colors
+                        .transparent,
+                  ),
+                  child: Text('Week', style: TextStyle(fontSize: 16.0,
+                      color: selectedDomain == 7 ? Colors.white : Colors.red),),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    selectedDomain = 30;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                    border: Border(right: BorderSide(style: BorderStyle.solid,
+                        width: 2.0,
+                        color: Colors.red)),
+                    color: selectedDomain == 30 ? Colors.red : Colors
+                        .transparent,
+                  ),
+                  child: Text('Month', style: TextStyle(fontSize: 16.0,
+                      color: selectedDomain == 30 ? Colors.white : Colors.red),),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    selectedDomain = 365;
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                      color: selectedDomain == 365 ? Colors.red : Colors
+                          .transparent
+                  ),
+                  padding: EdgeInsets.all(8.0),
+                  child: Text('Year', style: TextStyle(fontSize: 16.0,
+                      color: selectedDomain == 365 ? Colors.white : Colors.red),),
+                ),
+              )
+            ],
+          ),
+        )
     );
   }
-
-
-  @override
-  Widget build(BuildContext context) {
-    return new charts.TimeSeriesChart(
-      seriesList,
-      animate: animate,
-      // Optionally pass in a [DateTimeFactory] used by the chart. The factory
-      // should create the same type of [DateTime] as the data provided. If none
-      // specified, the default creates local date time.
-      dateTimeFactory: const charts.LocalDateTimeFactory(),
-      defaultRenderer: new charts.LineRendererConfig(includePoints: true),
-    );
-  }
-
-  /// Create one series with sample hard coded data.
-  static List<charts.Series<TimeSeriesSales, DateTime>> _createSampleData() {
-    final data = [
-      new TimeSeriesSales(new DateTime(2017, 9, 19), 5),
-      new TimeSeriesSales(new DateTime(2017, 9, 26), 25),
-      new TimeSeriesSales(new DateTime(2017, 10, 3), 100),
-      new TimeSeriesSales(new DateTime(2017, 10, 10), chartCount),
-    ];
-
-    return [
-      new charts.Series<TimeSeriesSales, DateTime>(
-        id: 'Sales',
-        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
-        domainFn: (TimeSeriesSales sales, _) => sales.time,
-        measureFn: (TimeSeriesSales sales, _) => sales.sales,
-        data: data,
-      )
-    ];
-  }
-}
-
-/// Sample time series data type.
-class TimeSeriesSales {
-  final DateTime time;
-  final int sales;
-
-  TimeSeriesSales(this.time, this.sales);
 }
