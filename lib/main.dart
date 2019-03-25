@@ -24,12 +24,18 @@ Random rng = new Random();
 Future<void> initDb() async {
   var databasesPath = await getDatabasesPath();
   String path = [databasesPath, 'demo.db'].join('');
-  await deleteDatabase(path);
   database = await openDatabase(path, version: 1,
   onCreate: (Database db, int version) async {
     await db.execute('CREATE TABLE StepCounts (id INTEGER PRIMARY KEY, date TEXT, steps INTEGER)');
-    for (int i = 0; i < 360; i++) {
-      await db.insert('StepCounts', {'id': i, 'date': DateTime(2019, 3, 23).add(Duration(days: -365+i)).toIso8601String(), 'steps': rng.nextInt(2000)+5000});
+    int i = 0;
+    for (; i < 120; i++) {
+      await db.insert('StepCounts', {'id': i, 'date': DateTime(2019, 3, 25).add(Duration(days: -365+i)).toIso8601String(), 'steps': rng.nextInt(2000)+5000});
+    }
+    for (; i < 240; i++) {
+      await db.insert('StepCounts', {'id': i, 'date': DateTime(2019, 3, 25).add(Duration(days: -365+i)).toIso8601String(), 'steps': rng.nextInt(3000)+7000});
+    }
+    for (; i < 365; i++) {
+      await db.insert('StepCounts', {'id': i, 'date': DateTime(2019, 3, 25).add(Duration(days: -365+i)).toIso8601String(), 'steps': rng.nextInt(1500)+3000});
     }
   });
 }
@@ -104,39 +110,82 @@ class MyDrawer extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               return showDialog(
-                context: context,
-                barrierDismissible: true,
-                builder: (context) {
-                  return AlertDialog(
-                    title: Text('Confirm'),
-                    content: Text('Really delete all saved data? This cannot be undone!'),
-                    actions: <Widget>[
-                      FlatButton(
-                        child: Text('Cancel'),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                      FlatButton(
-                        child: Text('Yes'),
-                        onPressed: () {
-                          database.execute("DELETE FROM StepCounts").then((_) {
-                            for (int i = 0; i < 365; i++) {
-                              database.insert('StepCounts', {'id': i, 'date': DateTime(2019, 3, 23).add(Duration(days: -365+i)).toIso8601String(), 'steps': 0});
-                            }
-                            setHomeState();
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text('Confirm'),
+                      content: Text('Really delete all saved data? This cannot be undone!'),
+                      actions: <Widget>[
+                        FlatButton(
+                          child: Text('Cancel'),
+                          onPressed: () {
                             Navigator.of(context).pop();
-                          });
-                        },
-                      )
-                    ],
-                  );
-                }
+                          },
+                        ),
+                        FlatButton(
+                          child: Text('Yes'),
+                          onPressed: () {
+                            database.execute("DELETE FROM StepCounts").then((_) {
+                              for (int i = 0; i < 365; i++) {
+                                database.insert('StepCounts', {'id': i, 'date': DateTime(2019, 3, 23).add(Duration(days: -365+i)).toIso8601String(), 'steps': 0});
+                              }
+                              setHomeState();
+                              Navigator.of(context).pop();
+                            });
+                          },
+                        )
+                      ],
+                    );
+                  }
+              );
+            },
+          ),
+          ListTile(
+            title: Text('Restore Sample Data'),
+            onTap: () {
+              Navigator.of(context).pop();
+              return showDialog(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text('Confirm'),
+                      content: Text('Really restore sample data? This will overwrite the current data!'),
+                      actions: <Widget>[
+                        FlatButton(
+                          child: Text('Cancel'),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                        FlatButton(
+                          child: Text('Yes'),
+                          onPressed: () {
+                            database.execute("DELETE FROM StepCounts").then((_) {
+                              int i = 0;
+                              for (; i < 120; i++) {
+                                database.insert('StepCounts', {'id': i, 'date': DateTime(2019, 3, 25).add(Duration(days: -365+i)).toIso8601String(), 'steps': rng.nextInt(2000)+5000});
+                              }
+                              for (; i < 240; i++) {
+                                database.insert('StepCounts', {'id': i, 'date': DateTime(2019, 3, 25).add(Duration(days: -365+i)).toIso8601String(), 'steps': rng.nextInt(3000)+7000});
+                              }
+                              for (; i < 365; i++) {
+                                database.insert('StepCounts', {'id': i, 'date': DateTime(2019, 3, 25).add(Duration(days: -365+i)).toIso8601String(), 'steps': rng.nextInt(1500)+3000});
+                              }
+                              setHomeState();
+                              Navigator.of(context).pop();
+                            });
+                          },
+                        )
+                      ],
+                    );
+                  }
               );
             },
           ),
           SizedBox(
-            height: 450,
+            height: 400,
           ),
           Center(child: Text('ECE JLLT 2019', style: TextStyle(color: Colors.black38),))
         ],
