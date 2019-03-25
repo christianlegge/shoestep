@@ -32,29 +32,50 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
 
 
 
-  int currentSteps = 0;
-  int stepsFromBt = 0;
+  int stepsToShow = 0;
+  int valueFromBt = 0;
   Timer readTimer;
-  bool readFromBluetooth = true;
+  bool readFromBluetooth = false;
   bool tryReading = false;
   int stepsDiffButton = 0;
   int stepsDiffBt = 0;
   bool lastReadFinished = true;
   int stepsFromButton = 0;
+  int halfStepCount = 0;
+  int checksSinceSignal = 0;
+  int lastChecksSinceSignal = 0;
 
   Animation<double> scanText;
   AnimationController scanTextController;
   Animation<double> bgScroll;
   AnimationController bgScrollController;
 
+  void recalculateSteps(int realValue, int diffValue) {
+    if (realValue + diffValue > halfStepCount) {
+      lastChecksSinceSignal = checksSinceSignal;
+      checksSinceSignal = 0;
+      print('received signal');
+      print(lastChecksSinceSignal);
+      stepsToShow++;
+    }
+    else {
+      checksSinceSignal++;
+    }
+    if (checksSinceSignal == (lastChecksSinceSignal / 2).floor()) {
+      stepsToShow++;
+    }
+    halfStepCount = realValue + diffValue;
+    //stepsToShow = 2*halfStepCount;
+    stepsToShow = stepsToShow.clamp(2*halfStepCount - 1, 2*halfStepCount);
+  }
 
   void readSteps(Timer t) {
     if (!this.mounted) {
       return;
     }
-    if (!readFromBluetooth) {
+    if (!readFromBluetooth && debug) {
       setState(() {
-        currentSteps = stepsFromButton + stepsDiffButton;
+        recalculateSteps(stepsFromButton, stepsDiffButton);
       });
     }
     else if (connectedAndReading) {
@@ -63,13 +84,12 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
           setState(() {
             lastReadFinished = false;
             selectedDevice.readCharacteristic(selectedCharacteristic).then((l) {
-
-              stepsFromBt = Uint8List.fromList(l).buffer.asByteData().getUint32(0);
+              valueFromBt = Uint8List.fromList(l).buffer.asByteData().getUint32(0);
               if (isFirstRead) {
-                stepsDiffBt = -stepsFromBt;
+                stepsDiffBt = -valueFromBt;
                 isFirstRead = false;
               }
-              currentSteps = stepsFromBt + stepsDiffBt;
+              recalculateSteps(valueFromBt, stepsDiffBt);
               lastReadFinished = true;
             });
           });
@@ -77,7 +97,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
       }
       catch(e) {
         setState(() {
-          currentSteps = -333;
+          stepsToShow = -333;
           lastReadFinished = true;
         });
       }
@@ -222,7 +242,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
               if (!(connectedAndReading || debug)) {
                 return;
               }
-              print(currentSteps);
+              print(stepsToShow);
               DateTime today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
               var result = await database.rawQuery('SELECT * FROM StepCounts WHERE date = "' + today.toIso8601String() + '"');
               print(result);
@@ -234,17 +254,17 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
                 database.insert('StepCounts', {
                   'id': numRows,
                   'date': today.toIso8601String(),
-                  'steps': currentSteps
+                  'steps': stepsToShow
                 });
               }
               else {
                 print("UPDATING");
-                int newSteps = result.first['steps'] + currentSteps;
+                int newSteps = result.first['steps'] + stepsToShow;
                 await database.update('StepCounts', {'steps': newSteps}, where: 'date = "'+today.toIso8601String()+'"');
               }
               readTimer = null;
 
-              WorkoutSummary summary = WorkoutSummary(DateTime.now().difference(startTime), currentSteps);
+              WorkoutSummary summary = WorkoutSummary(DateTime.now().difference(startTime), stepsToShow);
 
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => SummaryScreen(summary)));
@@ -295,25 +315,28 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
             });
           },
         ),
+        Text('Real value: ' + (readFromBluetooth ? valueFromBt : stepsFromButton).toString()),
+        Text('Checks since signal: $checksSinceSignal'),
+        Text('last Checks since signal: $lastChecksSinceSignal'),
+        Text('half step count: $halfStepCount'),
       ] : <Widget>[]) + <Widget>[
         Text(
-          currentSteps.toString(),
+          stepsToShow.toString(),
           style: TextStyle(
             fontSize: 90,
           )
         ),
-        Text('Real steps: ' + (readFromBluetooth ? stepsFromBt : stepsFromButton).toString()),
         RaisedButton(
           child: Text('Reset'),
           onPressed: () {
             setState(() {
               if (readFromBluetooth) {
-                stepsDiffBt -= currentSteps;
+                stepsDiffBt -= halfStepCount;
               }
               else {
-                stepsDiffButton -= currentSteps;
+                stepsDiffButton -= halfStepCount;
               }
-              currentSteps = 0;
+              halfStepCount = stepsToShow = 0;
             });
           },
         ),
