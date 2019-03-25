@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:core';
 import 'dart:developer';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:charts_flutter/flutter.dart' as charts;
 import 'package:flutter/material.dart';
@@ -49,6 +50,9 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
   AnimationController scanTextController;
   Animation<double> bgScroll;
   AnimationController bgScrollController;
+  Animation<double> runningMan;
+  AnimationController runningManController;
+  bool bounceyBoy = false;
 
   void recalculateSteps(int realValue, int diffValue) {
     if (realValue + diffValue > halfStepCount) {
@@ -129,9 +133,6 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
 
   @override
   void initState() {
-    if (debug) {
-      startTime = DateTime.now();
-    }
     _startScanning();
     scanTextController = AnimationController(
       duration: Duration(seconds: 1), vsync: this,
@@ -165,7 +166,27 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
         bgScrollController.forward(from: 0.35);
       }
     });
+    runningManController = AnimationController(
+      duration: Duration(seconds: 10), vsync: this,
+    );
+    runningMan = Tween<double>(begin: -100, end: 400).animate(runningManController)
+    ..addListener(() {
+      setState(() {
+
+      });
+    })
+    ..addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        runningManController.forward(from: 0);
+        bounceyBoy = rng.nextBool();
+      }
+    });
     readTimer = new Timer.periodic(Duration(milliseconds: 50), readSteps);
+    if (debug) {
+      startTime = DateTime.now();
+      bgScrollController.forward();
+      runningManController.forward(from: 0.2);
+    }
     super.initState();
   }
 
@@ -227,11 +248,12 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
 
             ),
             Positioned(
-                child: Hero(
-                  child: Icon(Icons.directions_walk, size: 100,),
-                  tag: 'walkTag',
-                ),
-                bottom: 80.0
+              child: Hero(
+                child: Icon(Icons.directions_walk, size: 100,),
+                tag: 'walkTag',
+              ),
+              bottom: 80.0 + (bounceyBoy ? 10*sin(runningMan.value/10).abs() : 0),
+              left: (runningMan.isDismissed ? 0 : runningMan.value),
             )
           ],
         ),
@@ -281,6 +303,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
     scanSubscription?.cancel();
     bgScrollController.dispose();
     scanTextController.dispose();
+    runningManController.dispose();
     super.dispose();
   }
 
@@ -448,6 +471,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
                   setState(() {
                     startTime = DateTime.now();
                     bgScrollController.forward();
+                    runningManController.forward(from: 0.2);
                     connectedAndReading = true;
                     tryingToConnect = false;
                   });
