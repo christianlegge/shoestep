@@ -1,4 +1,5 @@
 /// Timeseries chart example
+import 'dart:math';
 import 'package:charts_flutter/flutter.dart' as charts;
 import 'package:flutter/material.dart';
 import 'package:flutter_shoestep/main.dart';
@@ -13,13 +14,26 @@ class HomeScreen extends StatefulWidget {
   State<StatefulWidget> createState() => HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
 
   bool isConnected = true;
   int selectedDomain = 365;
 
+  Animation<int> fadeInAnim;
+  AnimationController fadeInController;
+
   @override
   void initState() {
+    fadeInController = AnimationController(
+      duration: Duration(seconds: 6), vsync: this
+    );
+    fadeInAnim = IntTween(begin: -100, end: 255).animate(fadeInController)
+    ..addListener(() {
+      setState(() {
+
+      });
+    });
+    fadeInController.forward();
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) =>
         precacheImage(AssetImage('assets/city.png'), context));
@@ -81,8 +95,9 @@ class HomeScreenState extends State<HomeScreen> {
               Center(
                 child: Column(
                   children: <Widget>[
-                    SizedBox(
-                      height: 100.0,
+                    Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text('Welcome', style: TextStyle(fontSize: 32.0, color: Color.fromARGB(max(fadeInAnim.value,0), 0, 0, 0)),),
                     ),
                     _ChartDomainSelector(),
                     Padding(
