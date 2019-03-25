@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:charts_flutter/flutter.dart' as charts;
 import 'package:flutter/material.dart';
 import 'package:flutter_shoestep/main.dart';
+import 'package:flutter_shoestep/summary.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
@@ -14,7 +15,7 @@ class WorkoutScreen extends StatefulWidget {
 }
 
 class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMixin {
-  bool debug = false;
+  bool debug = true;
   bool scanning = true;
   Map<String, ScanResult> devices = new Map();
   var scanSubscription;
@@ -24,6 +25,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
   BluetoothCharacteristic selectedCharacteristic;
   bool isFirstRead = true;
   bool tryingToConnect = false;
+  DateTime startTime;
 
 
   bool connectedAndReading = false;
@@ -107,7 +109,9 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
 
   @override
   void initState() {
-
+    if (debug) {
+      startTime = DateTime.now();
+    }
     _startScanning();
     scanTextController = AnimationController(
       duration: Duration(seconds: 1), vsync: this,
@@ -240,7 +244,10 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
               }
               readTimer = null;
 
+              WorkoutSummary summary = WorkoutSummary(DateTime.now().difference(startTime), currentSteps);
+
               Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => SummaryScreen(summary)));
             },
         ),
       ),
@@ -416,6 +423,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
                     }
                   }
                   setState(() {
+                    startTime = DateTime.now();
                     bgScrollController.forward();
                     connectedAndReading = true;
                     tryingToConnect = false;

@@ -87,62 +87,70 @@ class HomeScreenState extends State<HomeScreen> {
                     _ChartDomainSelector(),
                     Padding(
                         padding: EdgeInsets.all(10.0),
-                        child: FutureBuilder(
-                            future: database.rawQuery('select * from (select * from StepCounts order by id desc limit '+selectedDomain.toString()+') order by id asc'),
-                            builder: (context, snapshot) {
-                              if (snapshot.hasData) {
-                                return SizedBox(
-                                  height: 400.0,
-                                  width: 400.0,
-                                  child: charts.TimeSeriesChart(
-                                    <charts.Series<dynamic, DateTime>>[
-                                      new charts.Series<dynamic, DateTime>(
-                                        id: 'Sales',
-                                        colorFn: (_, __) =>
-                                        charts.MaterialPalette.red.shadeDefault,
-                                        dashPatternFn: (_, __) => [2, 2],
-                                        domainFn: (row, _) {
-                                          DateTime d = DateTime.parse(
-                                              row['date']);
-                                          return new DateTime(
-                                              d.year, d.month, d.day);
-                                        },
-                                        measureFn: (row, _) => row['steps'],
-                                        data: snapshot.data,
-                                      )
-                                    ],
-                                    animate: true,
-                                    defaultRenderer: new charts
-                                        .LineRendererConfig(
-                                        includePoints: true),
-                                    domainAxis: new charts.DateTimeAxisSpec(
-                                      renderSpec: new charts
-                                          .SmallTickRendererSpec(
-                                          labelStyle: new charts.TextStyleSpec(
-                                            fontSize: 12,
-                                          )
-                                      ),
-                                      tickFormatterSpec: new charts
-                                          .AutoDateTimeTickFormatterSpec(
-                                        minute: new charts.TimeFormatterSpec(
-                                          format: 'MMM dd',
-                                          transitionFormat: 'MMM dd',
+                        child: Row(
+                          children: <Widget>[
+                            RotatedBox(
+                              quarterTurns: 3, child: Text('Steps'),
+                            ),
+                            FutureBuilder(
+                              future: database.rawQuery('select * from (select * from StepCounts order by id desc limit '+selectedDomain.toString()+') order by id asc'),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  return SizedBox(
+                                    height: 400.0,
+                                    width: 350.0,
+                                    child: charts.TimeSeriesChart(
+                                      <charts.Series<dynamic, DateTime>>[
+                                        new charts.Series<dynamic, DateTime>(
+                                          id: 'Sales',
+                                          colorFn: (_, __) =>
+                                          charts.MaterialPalette.red.shadeDefault,
+                                          dashPatternFn: (_, __) => [2, 2],
+                                          domainFn: (row, _) {
+                                            DateTime d = DateTime.parse(
+                                                row['date']);
+                                            return new DateTime(
+                                                d.year, d.month, d.day);
+                                          },
+                                          measureFn: (row, _) => row['steps'],
+                                          data: snapshot.data,
+                                        )
+                                      ],
+                                      animate: true,
+                                      defaultRenderer: new charts
+                                          .LineRendererConfig(
+                                          includePoints: true),
+                                      domainAxis: new charts.DateTimeAxisSpec(
+                                        renderSpec: new charts
+                                            .SmallTickRendererSpec(
+                                            labelStyle: new charts.TextStyleSpec(
+                                              fontSize: 12,
+                                            )
                                         ),
-                                        day: new charts.TimeFormatterSpec(
-                                          format: 'MMM dd',
-                                          transitionFormat: 'MMM dd',
+                                        tickFormatterSpec: new charts
+                                            .AutoDateTimeTickFormatterSpec(
+                                          minute: new charts.TimeFormatterSpec(
+                                            format: 'MMM dd',
+                                            transitionFormat: 'MMM dd',
+                                          ),
+                                          day: new charts.TimeFormatterSpec(
+                                            format: 'MMM dd',
+                                            transitionFormat: 'MMM dd',
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                );
+                                  );
+                                }
+                                else {
+                                  return Text('No Data');
+                                }
                               }
-                              else {
-                                return Text('No Data');
-                              }
-                            }
-                        )
+                          )
+                        ]
+                      )
                     ),
+                    Text('Date'),
                   ],
                 ),
               ),
