@@ -15,7 +15,7 @@ class WorkoutScreen extends StatefulWidget {
 }
 
 class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMixin {
-  bool debug = true;
+  bool debug = false;
   bool scanning = true;
   Map<String, ScanResult> devices = new Map();
   var scanSubscription;
