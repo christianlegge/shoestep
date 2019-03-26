@@ -28,6 +28,9 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
   bool tryingToConnect = false;
   DateTime startTime;
 
+  int tmpBtVal = 0;
+
+  bool discoveringServices = false;
 
   bool connectedAndReading = false;
 
@@ -45,6 +48,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
   int halfStepCount = 0;
   int checksSinceSignal = 0;
   int lastChecksSinceSignal = 0;
+  bool disconnected = true;
 
   Animation<double> scanText;
   AnimationController scanTextController;
@@ -82,18 +86,41 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
         recalculateSteps(stepsFromButton, stepsDiffButton);
       });
     }
-    else if (connectedAndReading) {
+    else if (connectedAndReading && !disconnected) {
       try {
         if (lastReadFinished) {
           setState(() {
             lastReadFinished = false;
             selectedDevice.readCharacteristic(selectedCharacteristic).then((l) {
-              valueFromBt = Uint8List.fromList(l).buffer.asByteData().getUint32(0);
+              if(disconnected) {
+                valueFromBt = Uint8List.fromList(l).buffer.asByteData().getUint32(0);
+                stepsDiffBt += valueFromBt - tmpBtVal;
+                tmpBtVal = 0;
+                return;
+              }
+              print("READ CHARACTERISTIC, PARSING $l $checksSinceSignal");
+              if (l.length == 1 && l[0] == 0) {
+                valueFromBt = 0;
+              }
+              else if (l.length == 4) {
+                valueFromBt = Uint8List.fromList(l).buffer.asByteData().getUint32(0);
+              }
+              else {
+                lastReadFinished = true;
+                return;
+              }
               if (isFirstRead) {
                 stepsDiffBt = -valueFromBt;
                 isFirstRead = false;
               }
               recalculateSteps(valueFromBt, stepsDiffBt);
+              lastReadFinished = true;
+            })
+            ..timeout(Duration(seconds: 3), onTimeout: () {
+              stepsDiffBt += valueFromBt;
+              tmpBtVal = valueFromBt;
+              valueFromBt = 0;
+              disconnected = true;
               lastReadFinished = true;
             });
           });
@@ -339,6 +366,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
           },
         ),
         Text('Real value: ' + (readFromBluetooth ? valueFromBt : stepsFromButton).toString()),
+        Text('Difference: $stepsDiffBt'),
         Text('Checks since signal: $checksSinceSignal'),
         Text('last Checks since signal: $lastChecksSinceSignal'),
         Text('half step count: $halfStepCount'),
@@ -357,7 +385,7 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
                 stepsDiffBt -= halfStepCount;
               }
               else {
-                stepsDiffButton -= halfStepCount;
+                stepsDiffBt -= halfStepCount;
               }
               halfStepCount = stepsToShow = 0;
             });
@@ -450,37 +478,46 @@ class WorkoutScreenState extends State<WorkoutScreen> with TickerProviderStateMi
               selectedService = null;
               selectedCharacteristic = null;
               deviceConnection = flutterBlue.connect(v.device).listen((s) {
-                if (s == BluetoothDeviceState.connected) {
-                  print('connected!');
+                if (s ==BluetoothDeviceState.disconnecting) {
+                  print("CONNECTION DROPPED");
+                  disconnected = true;
                 }
-                selectedDevice.discoverServices()..then((list) {
-                  print('services discovered');
-                  deviceServices = list;
-                  for (BluetoothService bs in list) {
-                    if (bs.uuid.toString().toUpperCase().substring(4, 8) == '180F') {
-                      selectedService = bs;
-                      break;
-                    }
+                if (s == BluetoothDeviceState.connected) {
+                  disconnected = false;
+                  print('connected!');
+                  if (discoveringServices) {
+                    return;
                   }
-                  for (BluetoothCharacteristic bc in selectedService.characteristics) {
-                    if (bc.uuid.toString().toUpperCase().substring(4, 8) == '2A19') {
-                      selectedCharacteristic = bc;
-                      break;
+                  discoveringServices = true;
+                  selectedDevice.discoverServices()..then((list) {
+                    print('services discovered');
+                    deviceServices = list;
+                    for (BluetoothService bs in list) {
+                      if (bs.uuid.toString().toUpperCase().substring(4, 8) == '180F') {
+                        selectedService = bs;
+                        break;
+                      }
                     }
-                  }
-                  setState(() {
-                    startTime = DateTime.now();
-                    bgScrollController.forward();
-                    runningManController.forward(from: 0.2);
-                    connectedAndReading = true;
-                    tryingToConnect = false;
+                    for (BluetoothCharacteristic bc in selectedService.characteristics) {
+                      if (bc.uuid.toString().toUpperCase().substring(4, 8) == '2A19') {
+                        selectedCharacteristic = bc;
+                        break;
+                      }
+                    }
+                    setState(() {
+                      startTime = DateTime.now();
+                      bgScrollController.forward();
+                      runningManController.forward(from: 0.2);
+                      connectedAndReading = true;
+                      tryingToConnect = false;
+                    });
+                  })..timeout(Duration(seconds: 10), onTimeout: () {
+                    print("Timed out discover services");
+                    setState(() {
+                      tryingToConnect = false;
+                    });
                   });
-                })..timeout(Duration(seconds: 10), onTimeout: () {
-                  print("Timed out discover services");
-                  setState(() {
-                    tryingToConnect = false;
-                  });
-                });
+                }
               });
             });
           },
